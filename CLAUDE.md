@@ -112,11 +112,14 @@ python bot.py
 ## Команды для проверки
 
 - Запуск: `python bot.py`
+- Линт: `ruff check .` (конфиг в `pyproject.toml`)
 - Тесты: `pip install -r requirements-dev.txt && pytest`
   Стенд `tests/harness.py` поднимает две мок-сущности (111 «Артём», 222 «Аня»)
   в одной паре и имитирует Telegram (текст/кнопки/фото), перехватывая исходящие
   по chat_id. Так проверяются взаимодействия между двумя пользователями без сети.
   Гонять `pytest` после каждого спринта (самопроверка).
+- CI: GitHub Actions (`.github/workflows/ci.yml`) гоняет ruff + pytest на push/PR.
+  Пуш — через SSH-remote (OAuth-токен gh без scope `workflow` не пускает workflow по HTTPS).
 
 ## После работы
 
