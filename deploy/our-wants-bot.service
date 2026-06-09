@@ -1,2 +1,18 @@
-# systemd unit для our-wants-bot. TODO (Спринт 7): заполнить User, WorkingDirectory,
-# ExecStart (путь к .venv/bin/python bot.py), Restart=always.
+[Unit]
+Description=our-wants-bot (Telegram wishlist bot)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/Projects/Our_wants_bot
+ExecStart=/root/Projects/Our_wants_bot/.venv/bin/python bot.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+# Корректная остановка: aiogram обрабатывает SIGTERM (graceful shutdown polling)
+KillSignal=SIGTERM
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target
