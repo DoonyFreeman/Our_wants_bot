@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import enum
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     BigInteger,
@@ -22,20 +22,20 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Base(DeclarativeBase):
     pass
 
 
-class PairStatus(str, enum.Enum):
+class PairStatus(enum.StrEnum):
     pending = "pending"      # создана, ждёт второго участника
     active = "active"        # оба участника на месте
     archived = "archived"    # пара расторгнута, данные сохранены
 
 
-class ItemStatus(str, enum.Enum):
+class ItemStatus(enum.StrEnum):
     active = "active"
     done = "done"
 
@@ -54,7 +54,7 @@ class User(Base):
         DateTime(timezone=True), default=utcnow, server_default=func.now()
     )
 
-    memberships: Mapped[list["PairMember"]] = relationship(
+    memberships: Mapped[list[PairMember]] = relationship(
         back_populates="user",
         foreign_keys="PairMember.user_id",
         cascade="all, delete-orphan",
@@ -76,7 +76,7 @@ class Pair(Base):
         DateTime(timezone=True), nullable=True
     )
 
-    members: Mapped[list["PairMember"]] = relationship(
+    members: Mapped[list[PairMember]] = relationship(
         back_populates="pair", cascade="all, delete-orphan"
     )
 
@@ -98,8 +98,8 @@ class PairMember(Base):
         DateTime(timezone=True), default=utcnow, server_default=func.now()
     )
 
-    pair: Mapped["Pair"] = relationship(back_populates="members")
-    user: Mapped["User"] = relationship(
+    pair: Mapped[Pair] = relationship(back_populates="members")
+    user: Mapped[User] = relationship(
         back_populates="memberships", foreign_keys=[user_id]
     )
 
@@ -140,7 +140,7 @@ class Category(Base):
         DateTime(timezone=True), default=utcnow, server_default=func.now()
     )
 
-    items: Mapped[list["Item"]] = relationship(back_populates="category")
+    items: Mapped[list[Item]] = relationship(back_populates="category")
 
 
 class Item(Base):
@@ -175,4 +175,4 @@ class Item(Base):
         onupdate=utcnow,
     )
 
-    category: Mapped["Category"] = relationship(back_populates="items")
+    category: Mapped[Category] = relationship(back_populates="items")

@@ -81,7 +81,7 @@ class BotHarness:
     inbox: dict[int, list[Sent]] = field(default_factory=dict)
     _n: int = 0
 
-    async def start(self) -> "BotHarness":
+    async def start(self) -> BotHarness:
         from handlers import add_item, categories, edit_item, start, view
         from middlewares.auth import AuthMiddleware
         from middlewares.db import DbSessionMiddleware

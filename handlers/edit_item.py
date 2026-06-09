@@ -15,7 +15,6 @@ from db import repo
 from db.models import ItemStatus, User
 from handlers import view
 from keyboards import inline
-from keyboards.reply import main_menu
 from services.notify import notify_status_change
 from states import EditItem
 
