@@ -11,7 +11,7 @@ from aiogram.enums import ParseMode
 
 from config import load_config
 from db.database import create_engine, create_session_factory, init_db
-from handlers import add_item, start
+from handlers import add_item, start, view
 from middlewares.auth import AuthMiddleware
 from middlewares.db import DbSessionMiddleware
 
@@ -39,6 +39,7 @@ async def main() -> None:
 
     dp.include_router(start.router)
     dp.include_router(add_item.router)
+    dp.include_router(view.router)
 
     try:
         await bot.delete_webhook(drop_pending_updates=True)
