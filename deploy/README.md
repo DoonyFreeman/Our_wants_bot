@@ -50,6 +50,29 @@ mkdir -p /root/backups
 crontab -l 2>/dev/null | { cat; echo "0 4 * * * /root/Projects/Our_wants_bot/deploy/backup.sh"; } | crontab -
 ```
 
+## Если бот не видит Telegram (российские/некоторые VPS)
+
+Симптом: сервис `active`, но в логах нет `Run polling`, `getMe` с сервера висит/таймаутит.
+Причина: провайдер блокирует часть IP Telegram, а `api.telegram.org` резолвится в
+заблокированный IP или в IPv6 без маршрута.
+
+Проверка и фикс — пин на рабочий IPv4:
+
+```bash
+# какой IP отдаёт DNS и доходит ли он
+getent ahostsv4 api.telegram.org
+curl -s -m 8 --resolve api.telegram.org:443:149.154.167.220 -o /dev/null \
+  -w "%{http_code}\n" https://api.telegram.org/   # 200 = этот IP рабочий
+
+# закрепить рабочий IP
+echo "149.154.167.220 api.telegram.org" >> /etc/hosts
+systemctl restart our-wants-bot
+```
+
+> На этом сервере (FirstVDS) выставлен пин `149.154.167.220 api.telegram.org`.
+> Если когда-нибудь перестанет работать — подобрать другой рабочий IP Telegram
+> (149.154.167.220 / .197.x / .175.x) тем же `--resolve`-тестом и обновить `/etc/hosts`.
+
 ## Полезное
 
 - Логи: `journalctl -u our-wants-bot -f`
