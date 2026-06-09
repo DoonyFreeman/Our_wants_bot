@@ -1,0 +1,2 @@
+# systemd unit для our-wants-bot. TODO (Спринт 7): заполнить User, WorkingDirectory,
+# ExecStart (путь к .venv/bin/python bot.py), Restart=always.
