@@ -1,13 +1,12 @@
-"""/start, /help, /cancel и главное меню."""
+"""/help и /cancel. /start и онбординг — в handlers/pairing.py."""
 
 from __future__ import annotations
 
 from aiogram import Router
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
-from db.models import User
 from keyboards.reply import (
     BTN_ADD,
     BTN_CATEGORIES,
@@ -31,21 +30,10 @@ HELP_TEXT = (
 )
 
 
-@router.message(CommandStart())
-async def cmd_start(message: Message, user: User, state: FSMContext) -> None:
-    await state.clear()
-    name = user.first_name or "друг"
-    await message.answer(
-        f"Привет, {name}! 💛\n"
-        "Это наш общий вишлист — добавляй хотелки и смотри, что хочет партнёр.\n\n"
-        "Выбирай действие на клавиатуре ниже 👇",
-        reply_markup=main_menu(),
-    )
-
-
 @router.message(Command("help"))
-async def cmd_help(message: Message) -> None:
-    await message.answer(HELP_TEXT, reply_markup=main_menu())
+async def cmd_help(message: Message, pair_id: int | None) -> None:
+    markup = main_menu() if pair_id is not None else None
+    await message.answer(HELP_TEXT, reply_markup=markup)
 
 
 @router.message(Command("cancel"))

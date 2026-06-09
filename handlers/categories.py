@@ -36,7 +36,7 @@ async def categories_menu(
     message: Message, session: AsyncSession, pair_id: int | None
 ) -> None:
     if pair_id is None:
-        await message.answer("Пара ещё не настроена 🙈")
+        await message.answer("Сначала создай список и пригласи партнёра — нажми /start 💛")
         return
     text = await _categories_text(session, pair_id)
     await message.answer(text, reply_markup=inline.new_category_kb())

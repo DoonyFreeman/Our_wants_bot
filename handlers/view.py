@@ -98,7 +98,7 @@ async def _open_list(
     message: Message, session: AsyncSession, pair_id: int | None, me: int, scope: str
 ) -> None:
     if pair_id is None:
-        await message.answer("Пара ещё не настроена 🙈")
+        await message.answer("Сначала создай список и пригласи партнёра — нажми /start 💛")
         return
     author_id = await _scope_author(session, scope, pair_id, me)
     if author_id is None:

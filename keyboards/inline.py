@@ -23,6 +23,18 @@ BTN_SAVE = "✅ Сохранить"
 BTN_CLEAR = "🚫 Очистить"
 
 
+# ---------- Онбординг пары (Спринт 8) ----------
+
+class CreateInvite(CallbackData, prefix="mkinvite"):
+    """Создать пару и пригласительную ссылку."""
+
+
+def invite_start_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="🔗 Создать список и пригласить", callback_data=CreateInvite())
+    return builder.as_markup()
+
+
 # ---------- Добавление (Спринт 3) ----------
 
 class CatPick(CallbackData, prefix="catpick"):

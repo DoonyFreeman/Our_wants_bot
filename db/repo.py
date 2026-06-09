@@ -7,15 +7,20 @@
 
 from __future__ import annotations
 
+import secrets
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import (
     Category,
+    Invite,
     Item,
     ItemStatus,
     Pair,
     PairMember,
+    PairStatus,
     User,
 )
 
@@ -71,6 +76,96 @@ async def partner_id(session: AsyncSession, pair_id: int, telegram_id: int) -> i
             PairMember.user_id != telegram_id,
         )
     )
+
+
+# ---------- Пары и инвайты (онбординг) ----------
+
+async def create_pending_pair(session: AsyncSession, owner_id: int) -> Pair:
+    """Создаёт пару в статусе pending с одним участником (приглашающим)."""
+    pair = Pair(status=PairStatus.pending)
+    session.add(pair)
+    await session.flush()
+    session.add(PairMember(pair_id=pair.id, user_id=owner_id))
+    owner = await session.get(User, owner_id)
+    if owner is not None:
+        owner.current_pair_id = pair.id
+    await session.flush()
+    return pair
+
+
+async def pending_pair_for(session: AsyncSession, user_id: int) -> Pair | None:
+    return await session.scalar(
+        select(Pair)
+        .join(PairMember, PairMember.pair_id == Pair.id)
+        .where(PairMember.user_id == user_id, Pair.status == PairStatus.pending)
+        .order_by(Pair.id.desc())
+        .limit(1)
+    )
+
+
+async def create_invite(
+    session: AsyncSession, inviter_id: int, pair_id: int, ttl_hours: int = 48
+) -> str:
+    token = secrets.token_urlsafe(8)
+    session.add(
+        Invite(
+            token=token,
+            inviter_id=inviter_id,
+            pair_id=pair_id,
+            expires_at=datetime.now(UTC) + timedelta(hours=ttl_hours),
+        )
+    )
+    await session.flush()
+    return token
+
+
+async def get_valid_invite(session: AsyncSession, token: str) -> Invite | None:
+    inv = await session.get(Invite, token)
+    if inv is None or inv.used_at is not None:
+        return None
+    if inv.expires_at is not None:
+        exp = inv.expires_at
+        if exp.tzinfo is None:  # SQLite возвращает naive datetime
+            exp = exp.replace(tzinfo=UTC)
+        if exp < datetime.now(UTC):
+            return None
+    return inv
+
+
+async def pair_member_count(session: AsyncSession, pair_id: int) -> int:
+    return await session.scalar(
+        select(func.count(PairMember.id)).where(PairMember.pair_id == pair_id)
+    ) or 0
+
+
+async def accept_invite(
+    session: AsyncSession, token: str, user_id: int
+) -> tuple[str, Pair | None]:
+    """Принять инвайт. Возвращает (status, pair).
+
+    status: ok | invalid | own | already | full.
+    """
+    inv = await get_valid_invite(session, token)
+    if inv is None:
+        return ("invalid", None)
+    if inv.inviter_id == user_id:
+        return ("own", None)
+    if await active_pair_id(session, user_id) is not None:
+        return ("already", None)
+    pair = await session.get(Pair, inv.pair_id)
+    if pair is None or pair.status == PairStatus.archived:
+        return ("invalid", None)
+    if await pair_member_count(session, inv.pair_id) >= 2:
+        return ("full", None)
+
+    session.add(PairMember(pair_id=inv.pair_id, user_id=user_id))
+    pair.status = PairStatus.active
+    inv.used_at = datetime.now(UTC)
+    user = await session.get(User, user_id)
+    if user is not None:
+        user.current_pair_id = pair.id
+    await session.flush()
+    return ("ok", pair)
 
 
 # ---------- Категории ----------

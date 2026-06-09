@@ -64,6 +64,9 @@ class _FakeSession:
     async def make_request(self, bot: Bot, method: Any, timeout: Any = None) -> Any:
         self._record(method)
         name = type(method).__name__
+        if name == "GetMe":
+            return TgUser(id=BOT_ID, is_bot=True, first_name="Lovin",
+                          username="Lovin_wants_bot")
         if name in ("SendMessage", "SendPhoto", "EditMessageText"):
             return Message(message_id=1, date=datetime.now(),
                            chat=Chat(id=getattr(method, "chat_id", 0) or 0, type="private"))
@@ -79,28 +82,31 @@ class _FakeSession:
 class BotHarness:
     db_path: str = field(default_factory=lambda: tempfile.mktemp(suffix=".db"))
     inbox: dict[int, list[Sent]] = field(default_factory=dict)
+    # ID, из которых init_db сидит готовую active-пару (для тестов фич).
+    # Пусто — пары нет (для тестов онбординга/мэтчинга).
+    seed_ids: list[int] = field(default_factory=lambda: [USER_A, USER_B])
     _n: int = 0
 
     async def start(self) -> BotHarness:
-        from handlers import add_item, categories, edit_item, start, view
+        from handlers import add_item, categories, edit_item, pairing, start, view
         from middlewares.auth import AuthMiddleware
         from middlewares.db import DbSessionMiddleware
 
         self.config = Config(
-            bot_token=BOT_TOKEN, allowed_user_ids=[USER_A, USER_B], db_path=self.db_path
+            bot_token=BOT_TOKEN, allowed_user_ids=self.seed_ids, db_path=self.db_path
         )
         self.engine = create_engine(self.config)
         self.sf = create_session_factory(self.engine)
-        await init_db(self.engine, self.sf, self.config.allowed_user_ids)
+        await init_db(self.engine, self.sf, self.seed_ids)
 
         self.bot = Bot(BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
         self.bot.session = _FakeSession(self.inbox)
 
         self.dp = Dispatcher()
         self.dp.update.outer_middleware(DbSessionMiddleware(self.sf))
-        self.dp.update.outer_middleware(AuthMiddleware(self.config.allowed_user_ids))
+        self.dp.update.outer_middleware(AuthMiddleware())
         routers = (
-            start.router, add_item.router, view.router,
+            pairing.router, start.router, add_item.router, view.router,
             edit_item.router, categories.router,
         )
         for r in routers:

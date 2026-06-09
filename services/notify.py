@@ -41,6 +41,18 @@ async def notify_new_item(
         pass
 
 
+async def notify_paired(bot: Bot, partner_id: int, joined_name: str) -> None:
+    """Уведомляет о том, что партнёр присоединился и пара активна."""
+    text = (
+        f"🎉 <b>{escape(joined_name)}</b> присоединился(ась)!\n"
+        "Теперь у вас общий вишлист — добавляйте хотелки 💛"
+    )
+    try:
+        await bot.send_message(partner_id, text)
+    except TelegramAPIError:
+        pass
+
+
 async def notify_status_change(
     bot: Bot, partner_id: int, author_name: str, item: Item
 ) -> None:

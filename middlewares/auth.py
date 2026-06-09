@@ -1,10 +1,9 @@
-"""Whitelist-middleware: пускает только разрешённые Telegram ID.
+"""Контекст пользователя и пары на каждый апдейт.
 
-НЕ отключать этот whitelist (главное правило приватности на soft-launch).
-В Спринте 8 доступ расширится до членства в паре + флоу приглашения.
-
-Помимо проверки доступа, подгружает текущего пользователя и его активную пару
-и кладёт их в `data["user"]` / `data["pair_id"]`.
+Доступ к боту открыт всем (публичный мульти-тенант), но данные изолированы по
+паре: middleware подгружает текущего пользователя и его активную пару и кладёт
+их в `data["user"]` / `data["pair_id"]`. Хендлеры, требующие пары, проверяют
+`pair_id is None` и направляют в онбординг (/start).
 """
 
 from __future__ import annotations
@@ -19,9 +18,6 @@ from db import repo
 
 
 class AuthMiddleware(BaseMiddleware):
-    def __init__(self, allowed_ids: list[int]) -> None:
-        self.allowed_ids = set(allowed_ids)
-
     async def __call__(
         self,
         handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
@@ -29,8 +25,8 @@ class AuthMiddleware(BaseMiddleware):
         data: dict[str, Any],
     ) -> Any:
         tg_user = data.get("event_from_user")
-        if tg_user is None or tg_user.id not in self.allowed_ids:
-            return  # молча игнорируем посторонних
+        if tg_user is None or tg_user.is_bot:
+            return  # системные апдейты без пользователя пропускаем
 
         session = data["session"]
         user = await repo.get_or_create_user(

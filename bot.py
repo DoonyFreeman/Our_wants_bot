@@ -12,7 +12,7 @@ from aiogram.types import BotCommand
 
 from config import load_config
 from db.database import create_engine, create_session_factory, init_db
-from handlers import add_item, categories, edit_item, start, view
+from handlers import add_item, categories, edit_item, pairing, start, view
 from middlewares.auth import AuthMiddleware
 from middlewares.db import DbSessionMiddleware
 
@@ -40,10 +40,11 @@ async def main() -> None:
     )
     dp = Dispatcher()
 
-    # Порядок важен: сессия БД должна быть доступна middleware авторизации.
+    # Порядок важен: сессия БД должна быть доступна middleware контекста.
     dp.update.outer_middleware(DbSessionMiddleware(session_factory))
-    dp.update.outer_middleware(AuthMiddleware(config.allowed_user_ids))
+    dp.update.outer_middleware(AuthMiddleware())
 
+    dp.include_router(pairing.router)
     dp.include_router(start.router)
     dp.include_router(add_item.router)
     dp.include_router(view.router)

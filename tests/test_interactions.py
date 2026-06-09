@@ -97,11 +97,18 @@ async def test_photo_item_card(harness: BotHarness):
     assert "Дракон" in (last.text or "")
 
 
-async def test_outsider_is_ignored(harness: BotHarness):
-    """Посторонний ID не получает ничего."""
+async def test_outsider_without_pair_cannot_see_data(harness: BotHarness):
+    """Тот, кто не в паре, не видит чужих данных — его ведут в онбординг."""
+    # Сначала наполняем пару 111/222
+    await harness.add_item(USER_A, "Место", "Секрет пары")
+    # Посторонний 999 (не в паре) пытается смотреть списки
     await harness.send_text(999, "📋 Мой список")
+    assert "/start" in harness.last_text(999)  # подсказка онбординга, не данные
     await harness.send_text(999, "/start")
-    assert harness.messages(999) == []
+    # видит онбординг с кнопкой приглашения, а не записи пары
+    assert any("Создать список" in b for b in harness.button_texts(999))
+    joined = " ".join(m.text or "" for m in harness.messages(999))
+    assert "Секрет пары" not in joined
 
 
 async def test_empty_list_message(harness: BotHarness):

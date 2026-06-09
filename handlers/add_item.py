@@ -50,7 +50,7 @@ async def add_start(
     message: Message, state: FSMContext, session: AsyncSession, pair_id: int | None
 ) -> None:
     if pair_id is None:
-        await message.answer("Пара ещё не настроена 🙈")
+        await message.answer("Сначала создай список и пригласи партнёра — нажми /start 💛")
         return
     cats = await repo.list_categories(session, pair_id)
     await state.clear()
