@@ -34,7 +34,7 @@ def _build_preview(data: dict) -> str:
 async def _send_preview(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     await state.set_state(AddItem.confirm)
-    text = _build_preview(data) + "\n\nСохранить?"
+    text = "👀 <b>Проверь запись</b>\n\n" + _build_preview(data) + "\n\nСохранить?"
     if data.get("photo_file_id"):
         await message.answer_photo(
             data["photo_file_id"], caption=text, reply_markup=inline.confirm_kb()
@@ -55,7 +55,10 @@ async def add_start(
     cats = await repo.list_categories(session, pair_id)
     await state.clear()
     await state.set_state(AddItem.category)
-    await message.answer("Выбери категорию:", reply_markup=inline.categories_kb(cats))
+    await message.answer(
+        "➕ <b>Новая хотелка</b>\n\nШаг 1/5 — выбери категорию:",
+        reply_markup=inline.categories_kb(cats),
+    )
 
 
 @router.callback_query(AddItem.category, inline.CatPick.filter())
@@ -75,7 +78,8 @@ async def add_category(
     )
     await state.set_state(AddItem.title)
     await cb.message.edit_text(
-        f"Категория: {cat.emoji} {cat.name}\n\nВведи название:"
+        f"✅ Категория: {cat.emoji} {cat.name}\n\n"
+        f"Шаг 2/5 — напиши <b>название</b>:"
     )
     await cb.answer()
 
@@ -91,7 +95,8 @@ async def add_title(message: Message, state: FSMContext) -> None:
     await state.update_data(title=title)
     await state.set_state(AddItem.description)
     await message.answer(
-        "Добавь описание или пропусти:", reply_markup=inline.skip_kb("description")
+        "Шаг 3/5 — добавь <b>описание</b> или пропусти:",
+        reply_markup=inline.skip_kb("description"),
     )
 
 
@@ -106,7 +111,10 @@ async def add_title_invalid(message: Message) -> None:
 async def add_description(message: Message, state: FSMContext) -> None:
     await state.update_data(description=(message.text or "").strip())
     await state.set_state(AddItem.url)
-    await message.answer("Пришли ссылку или пропусти:", reply_markup=inline.skip_kb("url"))
+    await message.answer(
+        "Шаг 4/5 — пришли <b>ссылку</b> или пропусти:",
+        reply_markup=inline.skip_kb("url"),
+    )
 
 
 # ---------- Шаг 4: ссылка (опционально) ----------
@@ -115,7 +123,10 @@ async def add_description(message: Message, state: FSMContext) -> None:
 async def add_url(message: Message, state: FSMContext) -> None:
     await state.update_data(url=(message.text or "").strip())
     await state.set_state(AddItem.photo)
-    await message.answer("Пришли фото или пропусти:", reply_markup=inline.skip_kb("photo"))
+    await message.answer(
+        "Шаг 5/5 — пришли <b>фото</b> или пропусти:",
+        reply_markup=inline.skip_kb("photo"),
+    )
 
 
 # ---------- Шаг 5: фото (опционально) ----------
@@ -137,18 +148,30 @@ async def add_skip(
         await state.update_data(description=None)
         await state.set_state(AddItem.url)
         await cb.message.edit_text(
-            "Пришли ссылку или пропусти:", reply_markup=inline.skip_kb("url")
+            "Шаг 4/5 — пришли <b>ссылку</b> или пропусти:",
+            reply_markup=inline.skip_kb("url"),
         )
     elif step == "url":
         await state.update_data(url=None)
         await state.set_state(AddItem.photo)
         await cb.message.edit_text(
-            "Пришли фото или пропусти:", reply_markup=inline.skip_kb("photo")
+            "Шаг 5/5 — пришли <b>фото</b> или пропусти:",
+            reply_markup=inline.skip_kb("photo"),
         )
     elif step == "photo":
         await state.update_data(photo_file_id=None)
         await cb.message.delete()
         await _send_preview(cb.message, state)
+    await cb.answer()
+
+
+# ---------- Отмена потока ----------
+
+@router.callback_query(inline.FlowCancel.filter())
+async def add_flow_cancel(cb: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    await cb.message.delete()
+    await cb.message.answer("Отменено 👌", reply_markup=main_menu())
     await cb.answer()
 
 

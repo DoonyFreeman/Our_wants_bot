@@ -44,7 +44,6 @@ async def test_add_notifies_partner(harness: BotHarness):
     # Запись реально в БД
     async with harness.sf() as s:
         pid = await repo.active_pair_id(s, USER_A)
-        cats = await repo.list_categories(s, pid)
     assert pid is not None
 
 
@@ -55,8 +54,8 @@ async def test_partner_sees_my_items_in_their_partner_list(harness: BotHarness):
 
     await harness.send_text(USER_B, "💙 Список партнёра")
     assert "Список партнёра" in harness.last_text(USER_B)
-    # есть категория со счётчиком (1)
-    assert any("(1)" in t for t in harness.button_texts(USER_B)), harness.button_texts(USER_B)
+    # есть категория со счётчиком · 1
+    assert any("· 1" in t for t in harness.button_texts(USER_B)), harness.button_texts(USER_B)
 
     await harness.click_button(USER_B, "Подарок")      # открыть категорию
     assert "Букет" in harness.button_texts(USER_B), harness.button_texts(USER_B)
@@ -109,3 +108,29 @@ async def test_empty_list_message(harness: BotHarness):
     """Пустой список — дружелюбное сообщение, без падений."""
     await harness.send_text(USER_A, "📋 Мой список")
     assert "пусто" in harness.last_text(USER_A).lower()
+
+
+async def test_add_flow_can_be_cancelled(harness: BotHarness):
+    """Кнопка «Отмена» в потоке добавления прерывает FSM и не создаёт запись."""
+    await harness.send_text(USER_A, "➕ Добавить")
+    await harness.click_button(USER_A, "Отмена")
+    assert "Отменено" in harness.last_text(USER_A)
+
+    async with harness.sf() as s:
+        pid = await repo.active_pair_id(s, USER_A)
+        total = 0
+        for c in await repo.list_categories(s, pid):
+            total += len(
+                await repo.get_items_by_category(
+                    s, pid, c.id, author_id=None, status=None
+                )
+            )
+    assert total == 0
+
+
+async def test_help_lists_actions(harness: BotHarness):
+    """/help показывает понятную справку по действиям."""
+    await harness.send_text(USER_A, "/help")
+    text = harness.last_text(USER_A)
+    assert "Добавить" in text
+    assert "help" in text.lower()

@@ -35,7 +35,7 @@ async def test_partner_card_has_no_action_buttons(harness: BotHarness):
     await harness.click_button(USER_B, "Место")
     await harness.click_button(USER_B, "Парк")
     btns = harness.button_texts(USER_B)
-    assert not any("Редактировать" in b for b in btns), btns
+    assert not any("Изменить" in b for b in btns), btns
     assert not any("Удалить" in b for b in btns), btns
     assert any("Назад" in b for b in btns), btns
 
@@ -60,7 +60,7 @@ async def test_edit_title(harness: BotHarness):
     item_id, pid = await _any_item(harness, USER_A)
 
     await harness.open_my_card(USER_A, "Кукла", "Старое имя")
-    await harness.click_button(USER_A, "Редактировать")
+    await harness.click_button(USER_A, "Изменить")
     await harness.click_button(USER_A, "Название")
     await harness.send_text(USER_A, "Новое имя")
 
@@ -73,7 +73,7 @@ async def test_edit_clear_description(harness: BotHarness):
     item_id, pid = await _any_item(harness, USER_A)
 
     await harness.open_my_card(USER_A, "План", "Поездка")
-    await harness.click_button(USER_A, "Редактировать")
+    await harness.click_button(USER_A, "Изменить")
     await harness.click_button(USER_A, "Описание")
     await harness.click_button(USER_A, "Очистить")
 
@@ -103,7 +103,7 @@ async def test_mark_done_removes_from_active_and_notifies(harness: BotHarness):
 
     await harness.open_my_card(USER_A, "Место", "Кафе")
     harness.clear_inbox(USER_B)  # чистим только партнёра, карточка A нужна для клика
-    await harness.click_button(USER_A, "Выполнено")
+    await harness.click_button(USER_A, "Готово")
 
     # статус done в БД
     item = await _item_by_id(harness, item_id, pid)

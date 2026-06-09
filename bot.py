@@ -8,12 +8,19 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import BotCommand
 
 from config import load_config
 from db.database import create_engine, create_session_factory, init_db
 from handlers import add_item, categories, edit_item, start, view
 from middlewares.auth import AuthMiddleware
 from middlewares.db import DbSessionMiddleware
+
+BOT_COMMANDS = [
+    BotCommand(command="start", description="Главное меню"),
+    BotCommand(command="help", description="Как пользоваться"),
+    BotCommand(command="cancel", description="Отменить текущее действие"),
+]
 
 
 async def main() -> None:
@@ -45,6 +52,7 @@ async def main() -> None:
 
     try:
         await bot.delete_webhook(drop_pending_updates=True)
+        await bot.set_my_commands(BOT_COMMANDS)
         await dp.start_polling(bot)
     finally:
         await bot.session.close()

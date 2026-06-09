@@ -1,4 +1,8 @@
-"""Inline-клавиатуры и CallbackData-фабрики."""
+"""Inline-клавиатуры и CallbackData-фабрики.
+
+Единые подписи кнопок вынесены в константы ниже, чтобы интерфейс был
+консистентным во всех экранах.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +14,16 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from db.models import Category
 
+# Единые подписи кнопок
+BTN_BACK = "⬅️ Назад"
+BTN_BACK_CATS = "⬅️ К категориям"
+BTN_CANCEL = "❌ Отмена"
+BTN_SKIP = "⏭ Пропустить"
+BTN_SAVE = "✅ Сохранить"
+BTN_CLEAR = "🚫 Очистить"
+
+
+# ---------- Добавление (Спринт 3) ----------
 
 class CatPick(CallbackData, prefix="catpick"):
     """Выбор категории при добавлении записи."""
@@ -26,6 +40,10 @@ class Confirm(CallbackData, prefix="confirm"):
     ok: bool
 
 
+class FlowCancel(CallbackData, prefix="flowcancel"):
+    """Отмена пошагового добавления записи."""
+
+
 def categories_kb(categories: Iterable[Category]) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for cat in categories:
@@ -33,20 +51,23 @@ def categories_kb(categories: Iterable[Category]) -> InlineKeyboardMarkup:
             text=f"{cat.emoji} {cat.name}".strip(),
             callback_data=CatPick(id=cat.id),
         )
+    builder.button(text=BTN_CANCEL, callback_data=FlowCancel())
     builder.adjust(1)
     return builder.as_markup()
 
 
 def skip_kb(step: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="Пропустить ⏭", callback_data=Skip(step=step))
+    builder.button(text=BTN_SKIP, callback_data=Skip(step=step))
+    builder.button(text=BTN_CANCEL, callback_data=FlowCancel())
+    builder.adjust(2)
     return builder.as_markup()
 
 
 def confirm_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="✅ Сохранить", callback_data=Confirm(ok=True))
-    builder.button(text="❌ Отмена", callback_data=Confirm(ok=False))
+    builder.button(text=BTN_SAVE, callback_data=Confirm(ok=True))
+    builder.button(text=BTN_CANCEL, callback_data=Confirm(ok=False))
     builder.adjust(2)
     return builder.as_markup()
 
@@ -82,7 +103,7 @@ def categories_view_kb(
     builder = InlineKeyboardBuilder()
     for cat, count in cats_with_counts:
         builder.button(
-            text=f"{cat.emoji} {cat.name} ({count})".strip(),
+            text=f"{cat.emoji} {cat.name} · {count}".strip(),
             callback_data=ViewCat(scope=scope, cat_id=cat.id),
         )
     builder.adjust(1)
@@ -97,7 +118,7 @@ def items_view_kb(scope: str, cat_id: int, items) -> InlineKeyboardMarkup:
             callback_data=ViewItem(scope=scope, item_id=item.id),
         )
     builder.button(
-        text="⬅️ К категориям",
+        text=BTN_BACK_CATS,
         callback_data=ViewNav(to="cats", scope=scope, cat_id=0),
     )
     builder.adjust(1)
@@ -109,15 +130,15 @@ def card_kb(
 ) -> InlineKeyboardMarkup:
     """Карточка записи. Для владельца — действия, для чужой — только «Назад»."""
     builder = InlineKeyboardBuilder()
+    back = (BTN_BACK, ViewNav(to="items", scope=scope, cat_id=cat_id))
     if is_owner:
-        builder.button(text="✏️ Редактировать", callback_data=CardEdit(item_id=item_id))
-        builder.button(text="✅ Выполнено", callback_data=CardDone(item_id=item_id))
+        builder.button(text="✏️ Изменить", callback_data=CardEdit(item_id=item_id))
+        builder.button(text="✅ Готово", callback_data=CardDone(item_id=item_id))
         builder.button(text="🗑 Удалить", callback_data=CardDelete(item_id=item_id))
-    builder.button(
-        text="⬅️ Назад",
-        callback_data=ViewNav(to="items", scope=scope, cat_id=cat_id),
-    )
-    builder.adjust(2, 1, 1)
+        builder.button(text=back[0], callback_data=back[1])
+        builder.adjust(2, 2)
+    else:
+        builder.button(text=back[0], callback_data=back[1])
     return builder.as_markup()
 
 
@@ -160,11 +181,11 @@ class DelConfirm(CallbackData, prefix="delc"):
 
 
 _EDIT_FIELDS = [
-    ("Название", "title"),
-    ("Описание", "description"),
-    ("Ссылка", "url"),
-    ("Фото", "photo"),
-    ("Категория", "category"),
+    ("📝 Название", "title"),
+    ("🗒 Описание", "description"),
+    ("🔗 Ссылка", "url"),
+    ("🖼 Фото", "photo"),
+    ("📂 Категория", "category"),
 ]
 
 
@@ -172,7 +193,7 @@ def edit_fields_kb(item_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for label, field in _EDIT_FIELDS:
         builder.button(text=label, callback_data=EditField(item_id=item_id, field=field))
-    builder.button(text="⬅️ Назад", callback_data=EditCancel(item_id=item_id))
+    builder.button(text=BTN_BACK, callback_data=EditCancel(item_id=item_id))
     builder.adjust(2, 2, 1, 1)
     return builder.as_markup()
 
@@ -181,9 +202,9 @@ def edit_value_kb(item_id: int, field: str, optional: bool) -> InlineKeyboardMar
     builder = InlineKeyboardBuilder()
     if optional:
         builder.button(
-            text="🚫 Очистить", callback_data=EditClear(item_id=item_id, field=field)
+            text=BTN_CLEAR, callback_data=EditClear(item_id=item_id, field=field)
         )
-    builder.button(text="❌ Отмена", callback_data=EditCancel(item_id=item_id))
+    builder.button(text=BTN_CANCEL, callback_data=EditCancel(item_id=item_id))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -195,7 +216,7 @@ def edit_categories_kb(item_id: int, categories: Iterable[Category]) -> InlineKe
             text=f"{cat.emoji} {cat.name}".strip(),
             callback_data=EditCatPick(item_id=item_id, cat_id=cat.id),
         )
-    builder.button(text="❌ Отмена", callback_data=EditCancel(item_id=item_id))
+    builder.button(text=BTN_CANCEL, callback_data=EditCancel(item_id=item_id))
     builder.adjust(1)
     return builder.as_markup()
 
@@ -226,5 +247,5 @@ def new_category_kb() -> InlineKeyboardMarkup:
 
 def category_emoji_kb() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text="Пропустить ⏭", callback_data=CatEmojiSkip())
+    builder.button(text=BTN_SKIP, callback_data=CatEmojiSkip())
     return builder.as_markup()
