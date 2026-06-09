@@ -70,6 +70,28 @@ async def _card_payload(
     return "\n".join(lines)
 
 
+async def send_card(
+    message: Message,
+    session: AsyncSession,
+    item,
+    viewer_id: int,
+    scope: str,
+) -> None:
+    """Отправляет карточку записи новым сообщением (фото или текст).
+
+    Кнопки действий показываются только владельцу (own-only).
+    """
+    author = await session.get(User, item.author_id)
+    author_name = (author.first_name if author else "") or "—"
+    text = await _card_payload(session, item, author_name)
+    is_owner = item.author_id == viewer_id
+    kb = inline.card_kb(scope, item.category_id, item.id, is_owner)
+    if item.photo_file_id:
+        await message.answer_photo(item.photo_file_id, caption=text, reply_markup=kb)
+    else:
+        await message.answer(text, reply_markup=kb)
+
+
 # ---------- Точки входа из reply-меню ----------
 
 async def _open_list(
@@ -127,22 +149,15 @@ async def open_card(
     callback_data: inline.ViewItem,
     session: AsyncSession,
     pair_id: int,
+    user: User,
 ) -> None:
     item = await repo.get_item(session, callback_data.item_id, pair_id)
     if item is None:
         await cb.answer("Запись не найдена", show_alert=True)
         return
-    author = await session.get(User, item.author_id)
-    author_name = (author.first_name if author else "") or "—"
-    text = await _card_payload(session, item, author_name)
-    kb = inline.card_kb(callback_data.scope, item.category_id)
-
     # Карточка с фото не редактируется из текстового сообщения — пересоздаём.
     await cb.message.delete()
-    if item.photo_file_id:
-        await cb.message.answer_photo(item.photo_file_id, caption=text, reply_markup=kb)
-    else:
-        await cb.message.answer(text, reply_markup=kb)
+    await send_card(cb.message, session, item, user.telegram_id, callback_data.scope)
     await cb.answer()
 
 

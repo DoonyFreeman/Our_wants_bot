@@ -39,3 +39,17 @@ async def notify_new_item(
             await bot.send_message(partner_id, text)
     except TelegramAPIError:
         pass
+
+
+async def notify_status_change(
+    bot: Bot, partner_id: int, author_name: str, item: Item
+) -> None:
+    """Уведомляет партнёра об отметке записи как выполненной."""
+    text = (
+        f"✅ <b>{escape(author_name)}</b> отметил(а) как выполнено:\n"
+        f"📌 {escape(item.title)}"
+    )
+    try:
+        await bot.send_message(partner_id, text)
+    except TelegramAPIError:
+        pass

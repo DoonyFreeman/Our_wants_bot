@@ -82,7 +82,7 @@ class BotHarness:
     _n: int = 0
 
     async def start(self) -> "BotHarness":
-        from handlers import add_item, start, view
+        from handlers import add_item, categories, edit_item, start, view
         from middlewares.auth import AuthMiddleware
         from middlewares.db import DbSessionMiddleware
 
@@ -99,7 +99,11 @@ class BotHarness:
         self.dp = Dispatcher()
         self.dp.update.outer_middleware(DbSessionMiddleware(self.sf))
         self.dp.update.outer_middleware(AuthMiddleware(self.config.allowed_user_ids))
-        for r in (start.router, add_item.router, view.router):
+        routers = (
+            start.router, add_item.router, view.router,
+            edit_item.router, categories.router,
+        )
+        for r in routers:
             # Роутеры — модульные синглтоны; между тестами снимаем привязку
             # к предыдущему Dispatcher, чтобы можно было включить заново.
             r._parent_router = None
@@ -158,6 +162,36 @@ class BotHarness:
             f"{[b.text for r in markup.inline_keyboard for b in r]}"
         )
 
+    # ---------- Высокоуровневые сценарии ----------
+
+    async def add_item(
+        self, uid: int, category_substr: str, title: str,
+        description: str | None = None, url: str | None = None, photo: bool = False,
+    ) -> None:
+        """Полный поток добавления записи через кнопки и текст."""
+        await self.send_text(uid, "➕ Добавить")
+        await self.click_button(uid, category_substr)
+        await self.send_text(uid, title)
+        if description is None:
+            await self.click_button(uid, "Пропустить")
+        else:
+            await self.send_text(uid, description)
+        if url is None:
+            await self.click_button(uid, "Пропустить")
+        else:
+            await self.send_text(uid, url)
+        if photo:
+            await self.send_photo(uid)
+        else:
+            await self.click_button(uid, "Пропустить")
+        await self.click_button(uid, "Сохранить")
+
+    async def open_my_card(self, uid: int, category_substr: str, title_substr: str) -> None:
+        """Открывает карточку своей записи: Мой список → категория → запись."""
+        await self.send_text(uid, "📋 Мой список")
+        await self.click_button(uid, category_substr)
+        await self.click_button(uid, title_substr)
+
     # ---------- Инспекция «входящих» ----------
 
     def messages(self, uid: int) -> list[Sent]:
@@ -180,5 +214,8 @@ class BotHarness:
             return []
         return [b.text for row in markup.inline_keyboard for b in row]
 
-    def clear_inbox(self) -> None:
-        self.inbox.clear()
+    def clear_inbox(self, uid: int | None = None) -> None:
+        if uid is None:
+            self.inbox.clear()
+        else:
+            self.inbox.pop(uid, None)
